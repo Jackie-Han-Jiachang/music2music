@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f5f0">
+  <title>Playlist Studio · Export your songs</title>
+  <link rel="stylesheet" href="{{ url_for('stylesheet') }}">
+  <script src="{{ url_for('javascript') }}" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar"><a class="brand" href="/" aria-label="Playlist Studio home"><span class="brand-mark">♫</span> Playlist Studio</a><span class="local-badge"><i></i> Runs locally</span></header>
+    <main>
+      <section class="intro"><p class="eyebrow">YOUR MUSIC, READY TO GO</p><h1>Keep the playlist.<br><span>Take the songs with you.</span></h1><p class="lede">Turn a NetEase or QQ Music playlist into a clean list of song names and artists. Ready to copy, save, and rediscover.</p></section>
+      <div class="workspace">
+        <section class="card setup" aria-labelledby="setup-title">
+          <div class="section-label">01 / CONNECT YOUR PLAYLIST</div><h2 id="setup-title">Start with a playlist</h2><p class="muted">Choose where your music lives.</p>
+          <form id="playlist-form" action="{{ url_for('n2s') }}" method="post">
+            <fieldset class="services"><legend class="sr-only">Music service</legend>
+              <label class="service"><input type="radio" name="service" value="netease" checked><span><b class="service-icon netease">♪</b><strong>NetEase</strong><small>Cloud Music</small></span></label>
+              <label class="service"><input type="radio" name="service" value="qq"><span><b class="service-icon qq">♫</b><strong>QQ Music</strong><small>腾讯音乐</small></span></label>
+            </fieldset>
+            <label class="input-label" for="playlistId">Playlist ID</label><input id="playlistId" name="playlistId" inputmode="numeric" pattern="[0-9]+" placeholder="e.g. 9699105" required aria-describedby="id-help">
+            <p id="id-help" class="hint">Use the number in your playlist’s share link.</p>
+            <button id="submit" class="primary" type="submit"><span id="submit-label">Extract songs</span><span aria-hidden="true">↗</span></button>
+          </form>
+          <div class="note"><span aria-hidden="true">ⓘ</span><p>Public playlists work best. Song names and artists are exported in playlist order.</p></div>
+        </section>
+        <section class="card results" aria-labelledby="results-title" id="results">
+          <div class="results-heading"><div><div class="section-label">02 / YOUR SONG COLLECTION</div><h2 id="results-title"><span id="plname">Your playlist</span></h2></div><span class="count"><span id="numsongs">0</span> songs</span></div>
+          <p id="status" role="status" aria-live="polite">Your extracted songs will appear here.</p>
+          <div id="empty-state" class="empty"><div class="record" aria-hidden="true"><span>♪</span></div><h3>A little space for your music.</h3><p>Choose a service, enter a playlist ID,<br>and we’ll bring the song list here.</p></div>
+          <div id="song-list" class="song-list" hidden><table><thead><tr><th class="number" scope="col">#</th><th scope="col">SONG</th><th scope="col">ARTIST</th></tr></thead><tbody id="song-rows"></tbody></table></div>
+          <textarea id="output" class="sr-only" aria-label="Exported song names and artists" readonly tabindex="-1"></textarea>
+          <div class="result-actions"><span class="format-label">Song name — Artist</span><div><button id="copy" class="secondary" type="button" disabled>Copy list</button><button id="download" class="secondary" type="button" disabled>Download .txt</button></div></div>
+        </section>
+      </div>
+      <noscript><p class="card">Please enable JavaScript to extract a playlist.</p></noscript>
+    </main><footer><span>A simpler way to carry your music.</span><span>NetEase Cloud Music + QQ Music</span></footer>
+  </div>
+</body>
+</html>

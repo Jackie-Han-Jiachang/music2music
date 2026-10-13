@@ -1,50 +1,54 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Local playlist export app; the server proxies requests to the playlist API."""
+import os
+from pathlib import Path
+import re
 
-from flask import Flask, request, render_template
-import json
-import sys
-import urllib.request
+from flask import Flask, jsonify, redirect, render_template, request, send_file
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 4096
+from playlist import PlaylistError, fetch_playlist, fetch_qq_playlist
 
-@app.route('/n2s', methods=['GET'])
+
+@app.get('/')
+def index():
+    return redirect('/n2s')
+
+
+@app.get('/n2s.js')
+def javascript():
+    return send_file(Path(__file__).resolve().parent.parent / 'n2s.js', mimetype='application/javascript')
+
+
+@app.get('/n2s.css')
+def stylesheet():
+    return send_file(Path(__file__).resolve().parent.parent / 'n2s.css', mimetype='text/css')
+
+
+@app.get('/n2s')
 def n2s_show():
     return render_template('n2s.html')
 
-@app.route('/n2s', methods=['POST'])
+
+@app.post('/n2s')
 def n2s():
-	errRetrive = "No data retrived. \nPlease check the playlist id again."
-	playlistId = request.form['playlistId']
-	postContent = {"TransCode":"020111","OpenId":"123456789","Body":{"SongListId":playlistId}}
-	encodedContent = json.dumps(postContent).encode('utf-8')
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if not hasattr(data, 'get'):
+        return jsonify(error='Enter a numeric playlist ID.'), 400
+    playlist_id = str(data.get('playlistId', '')).strip()
+    if not re.fullmatch(r'[0-9]+', playlist_id):
+        return jsonify(error='Enter a numeric playlist ID.'), 400
+    service = data.get('service', 'netease')
+    if service not in ('netease', 'qq'):
+        return jsonify(error='Select NetEase Cloud Music or QQ Music.'), 400
+    try:
+        fetcher = fetch_qq_playlist if service == 'qq' else fetch_playlist
+        return jsonify(fetcher(playlist_id))
+    except PlaylistError as error:
+        app.logger.warning('Playlist retrieval failed: %s', error, exc_info=True)
+        return jsonify(error=str(error)), 502
 
-	reqUrl = "https://api.hibai.cn/api/index/index"
-
-	req = urllib.request.Request(reqUrl)
-	req.add_header('Content-Type', 'application/json; charset=utf-8')
-	req.add_header('Accept', 'application/json')
-
-	response = urllib.request.urlopen(req, encodedContent).read()
-	data = json.loads(response)
-
-	output = []
-
-	if data["ErrCode"] != "OK":
-		print(data["ErrCode"])
-		print(errRetrive)
-		print(help)
-
-	body = data["Body"]
-	playlistName = body["name"]
-	tracks = body["songs"]
-
-	for track in tracks:
-		trackName = track["title"]
-		artist = track["author"]
-		output.append(trackName + " - " + artist)  
-
-	return render_template('n2s.html', output=output)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8888, debug=True)
+    app.run(host='127.0.0.1', port=int(os.environ.get('PORT', '8888')))

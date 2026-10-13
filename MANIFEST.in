@@ -1,0 +1,9 @@
+include .python-version
+include uv.lock
+include launch.sh
+include n2s.js
+include n2s.css
+include requirements.txt
+recursive-include flask+ninja2 *.py *.html
+recursive-include tests *.py
+global-exclude __pycache__ *.py[cod] .DS_Store

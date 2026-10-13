@@ -1,12 +1,154 @@
-网易云-to-YoutubeMusic-Spotify-AppleMusic
------------------------------------------  
-[https://yyrcd.com/2018/11/14/n2s-zh/](https://yyrcd.com/2018/11/14/n2s-zh/)  
-转移网易云歌单到YoutubeMusic, Spotify, AppleMusic的web实现
+# Playlist Studio
 
-Netease-to-YoutubeMusic-Spotify-AppleMusic
------------------------------------------ 
-[https://yyrcd.com/n2s](https://yyrcd.com/n2s)  
-Web implement of transfering Netease Music list `to` YoutubeMusic, Spotify, AppleMusic.
+A local web app that extracts song names and artists from **NetEase Cloud Music**
+and **QQ Music** playlists. Choose a service, enter a numeric playlist ID, then
+copy the results or download a UTF-8 text file. Songs stay in playlist order.
 
-Original repo (python): [@bjason](https://github.com/bjason/163MusicToSpotify)  
-API: [@Binaryify](https://binaryify.github.io/NeteaseCloudMusicApi/#/)
+## Run with uv
+
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
+From this repository directory:
+
+```sh
+uv sync --locked
+uv run --locked python 'flask+ninja2/n2s.py'
+```
+
+Open **http://localhost:8888**. The checked-in `.python-version` selects Python
+3.9; the application supports Python 3.9 and newer. `uv` manages `.venv` and
+installs the versions recorded in `uv.lock`. First-time setup requires internet
+access to download Python (if needed) and packages.
+
+Stop a previously running server before starting the updated version, then
+refresh the browser to load the new page and scripts.
+
+## Install from a shared .tar.gz archive
+
+These instructions are for macOS or Linux with Bash. On Windows, use WSL and
+follow the same steps inside your Linux distribution.
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) on the
+   receiving machine. Confirm that `uv --version` works in a new terminal.
+   You do not need to install Flask or activate a virtual environment manually.
+2. Save the shared archive to a folder where you can create files, then extract it:
+
+   ```sh
+   tar -xzf netease_to_youtube_or_spotify-0.1.0.tar.gz
+   cd netease_to_youtube_or_spotify-0.1.0
+   ```
+
+3. Start the app:
+
+   ```sh
+   bash launch.sh
+   ```
+
+4. Open **http://localhost:8888** in your browser. Select NetEase or QQ Music,
+   enter your playlist ID, and click **Extract songs**. Keep the terminal open
+   while using the website. Press **Ctrl+C** in that terminal to stop it.
+
+The launcher first runs `uv sync --locked` to create a machine-specific `.venv`
+and install the locked dependencies. If the selected Python version is missing,
+uv can download it. It then starts Flask using that environment. Internet access
+is needed for the first installation and for retrieving playlists. Later launches
+reuse the local environment; no system-wide Python packages are changed.
+
+To start again, run `bash launch.sh` from the extracted folder. You can also
+launch it from another directory using `bash /path/to/project/launch.sh`.
+If port 8888 is already in use, choose another port:
+
+```sh
+PORT=8890 bash launch.sh
+```
+
+Then open http://localhost:8890. Existing provider configuration environment
+variables also work with the launcher. If dependencies cannot be downloaded,
+check the receiving machine's internet connection, DNS, and proxy settings.
+
+## Build an archive to share
+
+Rebuild after changing the app, documentation, or launcher:
+
+```sh
+uv build --sdist
+```
+
+Share `dist/netease_to_youtube_or_spotify-0.1.0.tar.gz`. The source archive includes
+the Flask app, HTML template, CSS, JavaScript, launcher, Python version file, and
+dependency lockfile. `MANIFEST.in` controls these additional files. Each recipient
+extracts the archive and runs the launcher; do not share your `.venv` directory.
+
+Archives built before the launch script and packaging manifest were added must
+be rebuilt, because those archives omit files needed to run the website.
+Use the `.tar.gz` source archive for this installation flow; installing the wheel
+with `pip` does not install the website files beside the source launcher.
+
+## Find your playlist ID
+
+- **NetEase:** use the number after `id=` in a playlist link, such as
+  `https://music.163.com/#/playlist?id=9699105`.
+- **QQ Music:** use the number in `/playlist/1234567890` or the `disstid` query
+  parameter of your playlist's share link. Select **QQ Music** on the page.
+
+Enter the numeric ID, rather than the full URL. Output contains one line per
+song: `Song name - Artist A, Artist B`. Chinese characters are preserved.
+
+## Retrieval
+
+NetEase playlist details may include only a ten-song preview. The server reads
+the complete `trackIds` list and fetches missing song details in batches of 200.
+QQ Music uses the playlist metadata service and requests successive pages of
+100 songs until the reported total or the end of the playlist is reached.
+Repeated QQ pages are rejected instead of being exported twice.
+
+Public playlists accessible without login are supported. Private, deleted, or
+restricted songs may be unavailable. Incomplete results are reported on the
+page; large playlists may take several minutes. No audio files are downloaded.
+All provider requests go through Flask, avoiding browser CORS issues.
+
+Provider interfaces are unofficial and may change. Implementation references:
+[NetEase API documentation](https://binaryify.github.io/NeteaseCloudMusicApi/)
+and [QQ Music client implementation](https://github.com/Yyyangshenghao/simple-music/blob/master/server/lib/qq-client.ts).
+
+## Configuration
+
+Environment variables can be set before launching:
+
+| Variable | Default / purpose |
+| --- | --- |
+| `PORT` | `8888`; server binds to `127.0.0.1` |
+| `PLAYLIST_API_URL` | `https://music.163.com/api/v6/playlist/detail` |
+| `SONG_API_URL` | NetEase song-detail endpoint, inferred from playlist endpoint |
+| `QQ_PLAYLIST_API_URL` | `https://u.y.qq.com/cgi-bin/musicu.fcg` |
+
+A custom NetEase service must accept GET playlist parameters `id` and `n`,
+return `code: 200` with `playlist` or `result` containing `tracks` and the full
+`trackIds`, and expose `/song/detail?ids=...`. Set `SONG_API_URL` for a different
+song endpoint. A custom QQ endpoint must accept the same JSON POST envelope as
+QQ's `music.srfDissInfo.DissInfo / CgiGetDiss` service.
+
+Connection failures distinguish DNS, HTTPS certificates, timeout, and HTTP
+errors. The computer running Flask needs access to both music providers.
+
+## Development
+
+```sh
+uv run --locked python -m unittest discover -s tests -v
+uv lock --check
+```
+
+Manage dependencies with `uv add`, `uv remove`, and `uv lock --upgrade`.
+`pyproject.toml` is the dependency source of truth. `requirements.txt` is a
+compatibility export; regenerate it after changing dependencies:
+
+```sh
+uv export --locked --no-hashes --output-file requirements.txt
+```
+
+The tests use mocked provider responses to check pagination, completeness,
+playlist order, metadata parsing, errors, and local Flask routes.
+
+## Original project
+
+Originally based on [163MusicToSpotify](https://github.com/bjason/163MusicToSpotify).
+The original Hibai endpoint and TransCode request format are no longer used.
